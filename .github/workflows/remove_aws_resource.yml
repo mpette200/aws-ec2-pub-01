@@ -1,7 +1,7 @@
 on: workflow_dispatch
-name: Create AWS Resource
+name: Remove AWS Resource
 jobs:
-  create_aws:
+  remove_aws:
       runs-on: ubuntu-latest
       permissions:
         id-token: write
