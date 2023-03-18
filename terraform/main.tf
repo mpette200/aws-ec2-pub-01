@@ -1,7 +1,7 @@
 terraform {
   backend "s3" {
-    bucket = var.state_bucket
-    key    = var.state_key
+    bucket = "github-tf-state-01"
+    key    = "tf-state-01/key"
   }
 
   required_providers {
