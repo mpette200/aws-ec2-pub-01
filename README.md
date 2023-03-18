@@ -54,7 +54,9 @@ import {
     CreatePolicyCommand,
     CreateOpenIDConnectProviderCommand,
     CreateRoleCommand,
-    AttachRolePolicyCommand
+    AttachRolePolicyCommand,
+    ListPoliciesCommand,
+    ListOpenIDConnectProvidersCommand
 } from "@aws-sdk/client-iam";
 
 
@@ -73,12 +75,23 @@ const createBucket = async () => {
             LocationConstraint: REGION
         }
     });
+    const response = await client.send(command);
+    // A forward slash followed by the name of the bucket.
+    return response.Location;
+};
+
+
+const getBucketPolicyArn = async() => {
+    const client = new IAMClient(CLIENT_CONFIG);
+    const command = new ListPoliciesCommand({
+        Scope: "Local"
+    });
     try {
         const response = await client.send(command);
-        // A forward slash followed by the name of the bucket.
-        return response.Location;
-    } catch {
-        console.trace();
+        const policy = response.Policies.find(x => x.PolicyName == `${BUCKET_NAME}-policy`);
+        return policy.Arn;
+    } catch (err) {
+        console.log(err);
     }
 };
 
@@ -112,8 +125,23 @@ const addBucketPolicy = async () => {
     try {
         const response = await client.send(command);
         return response.Policy.Arn;
-    } catch {
-        console.trace();
+    } catch (err) {
+        console.log(err);
+        return await getBucketPolicyArn();
+    }
+};
+
+
+const getOIDCProviderArn = async () => {
+    const client = new IAMClient(CLIENT_CONFIG);
+    const command = new ListOpenIDConnectProvidersCommand();
+    try {
+        const response = await client.send(command);
+        const name = "token.actions.githubusercontent.com";
+        const provider = response.OpenIDConnectProviderList.find(x => x.Arn.endsWith(name));
+        return provider.Arn;
+    } catch (err) {
+        console.log(err);
     }
 };
 
@@ -133,8 +161,9 @@ const createOIDCProvider = async () => {
     try {
         const response = await client.send(command);
         return response.OpenIDConnectProviderArn;
-    } catch {
-        console.trace();
+    } catch (err) {
+        console.log(err);
+        return await getOIDCProviderArn();
     }
 };
 
@@ -165,12 +194,8 @@ const createBucketRole = async (oidcProviderArn) => {
         RoleName: `${BUCKET_NAME}-role`,
         AssumeRolePolicyDocument: trustDoc
     });
-    try {
-        const response = await client.send(command);
-        return response.Role.Arn;
-    } catch {
-        console.trace();
-    }
+    const response = await client.send(command);
+    return response.Role.Arn;
 };
 
 
@@ -180,39 +205,47 @@ const attachBucketPolicyToRole = async (bucketPolicyArn) => {
         RoleName: `${BUCKET_NAME}-role`,
         PolicyArn: bucketPolicyArn
     });
-    try {
-        await client.send(command);
-    } catch {
-        console.trace();
-    }
+    await client.send(command);
 };
 
 
 const main = async () => {
     const sep = "\n------";
     console.log(`Creating storage bucket: ${BUCKET_NAME}`);
-    const bucketPath = await createBucket();
-    console.log(`Created at path: ${bucketPath}`);
+    try {
+        const bucketPath = await createBucket();
+        console.log(`Created at path: ${bucketPath}`);
+    } catch (err) {
+        console.log(err);
+    }
     
     console.log(sep);
     console.log(`Adding policy to bucket`);
     const bucketPolicyArn = await addBucketPolicy();
-    console.log(`Added policy with arn: ${bucketPolicyArn}`);
+    console.log(`Bucket policy with arn: ${bucketPolicyArn}`);
 
     console.log(sep);
     console.log(`Adding OIDC provider`);
     const oidcProviderArn = await createOIDCProvider();
-    console.log(`Added OIDC provider with arn: ${oidcProviderArn}`);
+    console.log(`OIDC provider with arn: ${oidcProviderArn}`);
 
     console.log(sep);
     console.log(`Adding role for bucket`);
-    const bucketRoleArn = await createBucketRole(oidcProviderArn);
-    console.log(`Added role with arn: ${bucketRoleArn}`);
+    try {
+        const bucketRoleArn = await createBucketRole(oidcProviderArn);
+        console.log(`Added role with arn: ${bucketRoleArn}`);
+    } catch (err) {
+        console.log(err);
+    }
 
     console.log(sep);
     console.log(`Attaching bucket policy to role`);
-    await attachBucketPolicyToRole(bucketPolicyArn);
-    console.log(`Attached policy`);
+    try {
+        await attachBucketPolicyToRole(bucketPolicyArn);
+        console.log(`Attached policy`);
+    } catch (err) {
+        console.log(err);
+    }
 
 };
 
