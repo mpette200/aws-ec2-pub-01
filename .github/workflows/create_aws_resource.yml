@@ -1,0 +1,35 @@
+on: workflow_dispatch
+name: Create AWS Resource
+jobs:
+  create_aws:
+      runs-on: ubuntu-latest
+      permissions:
+        id-token: write
+        contents: read
+      
+      env:
+        AWS_ID_NUMBER: 368354737788
+        AWS_REGION: eu-west-1
+        BUCKET_NAME: github-tf-state-01
+      
+      steps:
+      - uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - run: npm install @aws-sdk/client-sts
+      
+      - name: Get token for terraform state bucket
+        id: token-tf-state
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const get_credentials = require('./.github/nodejs/get_aws_credentials.js');
+            const audience = 'sts.amazonaws.com/tf-state';
+            await get_credentials({core, audience});
+      
+      - name: Check Token
+        run: |
+          echo "some data" > ~/temp_data.txt
+          aws s3 cp ~/temp_data.txt s3://${{ env.BUCKET_NAME }}/
