@@ -1,0 +1,46 @@
+on: workflow_dispatch
+name: Create AWS Resource
+jobs:
+  create_aws:
+      runs-on: ubuntu-latest
+      permissions:
+        id-token: write
+        contents: read
+      
+      env:
+        STATE_ROLE_ARN: arn:aws:iam::368354737788:role/github-tf-state-01-role
+        STATE_SESSION: github-tf-state-01-session
+        JWT_TOKEN_FILE: github-tf-access-01_token-file.jwt
+        AWS_REGION: eu-west-1
+      
+      steps:
+      - uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - run: npm install @aws-sdk/client-sts
+      
+      - name: Get token for terraform state bucket
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const get_credentials = require('./.github/nodejs/get_aws_credentials.js');
+            const audience = 'sts.amazonaws.com/tf-state';
+            const roleArn = '${{ env.STATE_ROLE_ARN }}';
+            const sessionName = '${{ env.STATE_SESSION }}';
+            await get_credentials({core, audience, roleArn, sessionName});
+      
+      - name: Get token for running terraform
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { writeFileSync } = require('node:fs');
+            const token = await core.getIDToken('sts.amazonaws.com')
+            writeFileSync('terraform/${{ env.JWT_TOKEN_FILE }}', token);
+
+      - name: Run Terraform
+        run: |
+          cd terraform
+          terraform init
+          terraform destroy -auto-approve -var-file "params.tfvars"
