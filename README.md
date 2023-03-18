@@ -73,9 +73,13 @@ const createBucket = async () => {
             LocationConstraint: REGION
         }
     });
-    const response = await client.send(command);
-    // A forward slash followed by the name of the bucket.
-    return response.Location;
+    try {
+        const response = await client.send(command);
+        // A forward slash followed by the name of the bucket.
+        return response.Location;
+    } catch {
+        console.trace();
+    }
 };
 
 
@@ -105,8 +109,12 @@ const addBucketPolicy = async () => {
         PolicyName: `${BUCKET_NAME}-policy`,
         PolicyDocument: bucketPolicy
     });
-    const response = await client.send(command);
-    return response.Policy.Arn;
+    try {
+        const response = await client.send(command);
+        return response.Policy.Arn;
+    } catch {
+        console.trace();
+    }
 };
 
 
@@ -122,8 +130,12 @@ const createOIDCProvider = async () => {
             "6938fd4d98bab03faadb97b34396831e3780aea1"
         ]
     });
-    const response = await client.send(command);
-    return response.OpenIDConnectProviderArn;
+    try {
+        const response = await client.send(command);
+        return response.OpenIDConnectProviderArn;
+    } catch {
+        console.trace();
+    }
 };
 
 
@@ -153,8 +165,12 @@ const createBucketRole = async (oidcProviderArn) => {
         RoleName: `${BUCKET_NAME}-role`,
         AssumeRolePolicyDocument: trustDoc
     });
-    const response = await client.send(command);
-    return response.Role.Arn;
+    try {
+        const response = await client.send(command);
+        return response.Role.Arn;
+    } catch {
+        console.trace();
+    }
 };
 
 
@@ -164,7 +180,11 @@ const attachBucketPolicyToRole = async (bucketPolicyArn) => {
         RoleName: `${BUCKET_NAME}-role`,
         PolicyArn: bucketPolicyArn
     });
-    await client.send(command);
+    try {
+        await client.send(command);
+    } catch {
+        console.trace();
+    }
 };
 
 
