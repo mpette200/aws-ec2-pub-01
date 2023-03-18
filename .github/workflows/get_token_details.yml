@@ -1,0 +1,36 @@
+on: workflow_dispatch
+name: Get Token Details
+jobs:
+  request_jwt:
+      runs-on: ubuntu-latest
+      permissions:
+        id-token: write
+        contents: write
+      
+      steps:
+      - name: checkout
+        uses: actions/checkout@v3
+        
+      - name: Get Id Token
+        id: jwt_token
+        uses: actions/github-script@v6
+        with:
+          result-encoding: string
+          script: |
+            const { Buffer } = require('node:buffer');
+            const indentSpaces = 2;
+            const id_token = await core.getIDToken('sts.amazonaws.com/tf-state');
+            const base64Payload = id_token.split('.')[1];
+            const payload = JSON.parse(Buffer.from(base64Payload, 'base64').toString());
+            const payloadData = JSON.stringify(payload, null, indentSpaces);
+            console.log(payloadData);
+            return payloadData;
+      
+      - name: Save Token Claims
+        run: |
+          echo '${{steps.jwt_token.outputs.result}}' > ".github/github_oidc_claims.txt"
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git commit -m "Generated .github/github_oidc_claims.txt"
+          git push
