@@ -331,7 +331,7 @@ const main = async () => {
 
     console.log(sep);
     console.log(`Adding role for terraform`);
-    const terraformRoleArn = await createOrUpdateBucketRole(oidcProviderArn);
+    const terraformRoleArn = await createOrUpdateTerraformRole(oidcProviderArn);
     console.log(`Role with arn: ${terraformRoleArn}`);
 
     console.log(sep);
