@@ -56,13 +56,15 @@ import {
     CreateRoleCommand,
     AttachRolePolicyCommand,
     ListPoliciesCommand,
-    ListOpenIDConnectProvidersCommand
+    ListOpenIDConnectProvidersCommand,
+    UpdateRoleCommand,
+    UpdateAssumeRolePolicyCommand
 } from "@aws-sdk/client-iam";
 
 
 const BUCKET_NAME = "github-tf-state-01";
 const REGION = "eu-west-1";
-const REPO_ACCESS_CONDITION = "repo:mpette200/aws-ec2-pub-01:*";
+const REPO_ACCESS_CONDITION = "repo:mpette200/aws-ec2-01:*";
 
 const CLIENT_CONFIG = { region: REGION };
 
@@ -168,7 +170,17 @@ const createOIDCProvider = async () => {
 };
 
 
-const createBucketRole = async (oidcProviderArn) => {
+const updateBucketRole = async (trustDoc) => {
+    const client = new IAMClient(CLIENT_CONFIG);
+    const command = new UpdateAssumeRolePolicyCommand({
+        RoleName: `${BUCKET_NAME}-role`,
+        PolicyDocument: trustDoc
+    });
+    await client.send(command);
+};
+
+
+const createOrUpdateBucketRole = async (oidcProviderArn) => {
     const trustDoc = `{
         "Version": "2012-10-17",
         "Statement": [
@@ -194,8 +206,14 @@ const createBucketRole = async (oidcProviderArn) => {
         RoleName: `${BUCKET_NAME}-role`,
         AssumeRolePolicyDocument: trustDoc
     });
-    const response = await client.send(command);
-    return response.Role.Arn;
+    try {
+        const response = await client.send(command);
+        return response.Role.Arn;
+    } catch (err) {
+        console.log(err);
+        console.log("Updating trust policy doc");
+        await updateBucketRole(trustDoc);
+    }
 };
 
 
@@ -231,12 +249,8 @@ const main = async () => {
 
     console.log(sep);
     console.log(`Adding role for bucket`);
-    try {
-        const bucketRoleArn = await createBucketRole(oidcProviderArn);
-        console.log(`Added role with arn: ${bucketRoleArn}`);
-    } catch (err) {
-        console.log(err);
-    }
+    const bucketRoleArn = await createOrUpdateBucketRole(oidcProviderArn);
+    console.log(`Role with arn: ${bucketRoleArn}`);
 
     console.log(sep);
     console.log(`Attaching bucket policy to role`);
