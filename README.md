@@ -58,7 +58,9 @@ import {
     ListPoliciesCommand,
     ListOpenIDConnectProvidersCommand,
     UpdateRoleCommand,
-    UpdateAssumeRolePolicyCommand
+    UpdateAssumeRolePolicyCommand,
+    ListRolePoliciesCommand,
+    GetRoleCommand
 } from "@aws-sdk/client-iam";
 
 
@@ -176,7 +178,25 @@ const updateBucketRole = async (trustDoc) => {
         RoleName: `${BUCKET_NAME}-role`,
         PolicyDocument: trustDoc
     });
-    await client.send(command);
+    try {
+        await client.send(command);
+    } catch (err) {
+        console.log(err);
+    }
+};
+
+
+const getBucketRoleArn = async () => {
+    const client = new IAMClient(CLIENT_CONFIG);
+    const command = new GetRoleCommand({
+        RoleName: `${BUCKET_NAME}-role`
+    });
+    try {
+        const response = await client.send(command);
+        return response.Role.Arn;
+    } catch (err) {
+        console.log(err);
+    }
 };
 
 
@@ -213,6 +233,7 @@ const createOrUpdateBucketRole = async (oidcProviderArn) => {
         console.log(err);
         console.log("Updating trust policy doc");
         await updateBucketRole(trustDoc);
+        return await getBucketRoleArn();
     }
 };
 
