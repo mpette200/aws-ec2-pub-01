@@ -66,7 +66,7 @@ import {
 
 const BUCKET_NAME = "github-tf-state-01";
 const REGION = "eu-west-1";
-const REPO_ACCESS_CONDITION = "repo:mpette200/aws-ec2-01:*";
+const REPO_ACCESS_CONDITION = "repo:mpette200/aws-ec2-pub-01:*";
 
 const CLIENT_CONFIG = { region: REGION };
 
