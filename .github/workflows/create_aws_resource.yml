@@ -21,7 +21,6 @@ jobs:
       - run: npm install @aws-sdk/client-sts
       
       - name: Get token for terraform state bucket
-        id: token-tf-state
         uses: actions/github-script@v6
         with:
           script: |
@@ -29,7 +28,21 @@ jobs:
             const audience = 'sts.amazonaws.com/tf-state';
             await get_credentials({core, audience});
       
+      - name: Get token for running terraform
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { writeFileSync } = require('node:fs');
+            const token = await core.getIDToken('sts.amazonaws.com')
+            writeFileSync('~/github-tf-access-01_token-file.jwt', token);
+      
       - name: Check Token
         run: |
           echo "some data" > ~/temp_data.txt
           aws s3 cp ~/temp_data.txt s3://${{ env.BUCKET_NAME }}/
+
+      - name: Run Terraform
+        run: |
+          cd terraform
+          terraform init
+          terraform apply -auto-approve -var-file "params.tfvars"
