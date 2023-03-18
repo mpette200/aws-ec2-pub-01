@@ -8,9 +8,9 @@ jobs:
         contents: read
       
       env:
-        AWS_ID_NUMBER: 368354737788
+        STATE_ROLE_ARN: arn:aws:iam::368354737788:role/github-tf-state-01-role
+        STATE_SESSION: github-tf-state-01-session
         AWS_REGION: eu-west-1
-        BUCKET_NAME: github-tf-state-01
       
       steps:
       - uses: actions/checkout@v3
@@ -26,7 +26,9 @@ jobs:
           script: |
             const get_credentials = require('./.github/nodejs/get_aws_credentials.js');
             const audience = 'sts.amazonaws.com/tf-state';
-            await get_credentials({core, audience});
+            const roleArn = '${{ env.STATE_ROLE_ARN }}';
+            const sessionName = '${{ env.STATE_SESSION }}';
+            await get_credentials({core, audience, roleArn, sessionName});
       
       - name: Get token for running terraform
         uses: actions/github-script@v6

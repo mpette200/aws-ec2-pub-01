@@ -1,12 +1,9 @@
-module.exports = async ({core, audience}) => {
-  const { AWS_ID_NUMBER, BUCKET_NAME } = process.env
+module.exports = async ({core, audience, roleArn, sessionName}) => {
   
   const { Buffer } = require('node:buffer');
   const { STSClient, AssumeRoleWithWebIdentityCommand } = require("@aws-sdk/client-sts");
 
   const indentSpaces = 2;
-  const roleArn = `arn:aws:iam::${AWS_ID_NUMBER}:role/${BUCKET_NAME}-role`;
-  const sessionName = `${BUCKET_NAME}-session`;
 
   const id_token = await core.getIDToken(audience);
   const base64Payload = id_token.split('.')[1];
