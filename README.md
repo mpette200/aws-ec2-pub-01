@@ -57,9 +57,7 @@ import {
     AttachRolePolicyCommand,
     ListPoliciesCommand,
     ListOpenIDConnectProvidersCommand,
-    UpdateRoleCommand,
     UpdateAssumeRolePolicyCommand,
-    ListRolePoliciesCommand,
     GetRoleCommand
 } from "@aws-sdk/client-iam";
 
@@ -67,6 +65,7 @@ import {
 const BUCKET_NAME = "github-tf-state-01";
 const REGION = "eu-west-1";
 const REPO_ACCESS_CONDITION = "repo:mpette200/aws-ec2-pub-01:*";
+const TERRAFORM_ROLE = "github-tf-access-01-role";
 
 const CLIENT_CONFIG = { region: REGION };
 
@@ -172,10 +171,10 @@ const createOIDCProvider = async () => {
 };
 
 
-const updateBucketRole = async (trustDoc) => {
+const updateRole = async (roleName, trustDoc) => {
     const client = new IAMClient(CLIENT_CONFIG);
     const command = new UpdateAssumeRolePolicyCommand({
-        RoleName: `${BUCKET_NAME}-role`,
+        RoleName: roleName,
         PolicyDocument: trustDoc
     });
     try {
@@ -186,10 +185,10 @@ const updateBucketRole = async (trustDoc) => {
 };
 
 
-const getBucketRoleArn = async () => {
+const getRoleArn = async (roleName) => {
     const client = new IAMClient(CLIENT_CONFIG);
     const command = new GetRoleCommand({
-        RoleName: `${BUCKET_NAME}-role`
+        RoleName: roleName
     });
     try {
         const response = await client.send(command);
@@ -232,8 +231,8 @@ const createOrUpdateBucketRole = async (oidcProviderArn) => {
     } catch (err) {
         console.log(err);
         console.log("Updating trust policy doc");
-        await updateBucketRole(trustDoc);
-        return await getBucketRoleArn();
+        await updateRole(`${BUCKET_NAME}-role`, trustDoc);
+        return await getRoleArn(`${BUCKET_NAME}-role`);
     }
 };
 
@@ -243,6 +242,54 @@ const attachBucketPolicyToRole = async (bucketPolicyArn) => {
     const command = new AttachRolePolicyCommand({
         RoleName: `${BUCKET_NAME}-role`,
         PolicyArn: bucketPolicyArn
+    });
+    await client.send(command);
+};
+
+
+const createOrUpdateTerraformRole = async (oidcProviderArn) => {
+    const trustDoc = `{
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Principal": {
+                    "Federated": "${oidcProviderArn}"
+                },
+                "Action": "sts:AssumeRoleWithWebIdentity",
+                "Condition": {
+                    "StringLike": {
+                        "token.actions.githubusercontent.com:sub": "${REPO_ACCESS_CONDITION}"
+                    },
+                    "StringEquals": {
+                        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+                    }
+                }
+            }
+        ]
+    }`;
+    const client = new IAMClient(CLIENT_CONFIG);
+    const command = new CreateRoleCommand({
+        RoleName: TERRAFORM_ROLE,
+        AssumeRolePolicyDocument: trustDoc
+    });
+    try {
+        const response = await client.send(command);
+        return response.Role.Arn;
+    } catch (err) {
+        console.log(err);
+        console.log("Updating trust policy doc");
+        await updateRole(TERRAFORM_ROLE, trustDoc);
+        return await getRoleArn(TERRAFORM_ROLE);
+    }
+};
+
+
+const attachTerraformPolicyToRole = async () => {
+    const client = new IAMClient(CLIENT_CONFIG);
+    const command = new AttachRolePolicyCommand({
+        RoleName: TERRAFORM_ROLE,
+        PolicyArn: "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
     });
     await client.send(command);
 };
@@ -282,6 +329,19 @@ const main = async () => {
         console.log(err);
     }
 
+    console.log(sep);
+    console.log(`Adding role for terraform`);
+    const terraformRoleArn = await createOrUpdateBucketRole(oidcProviderArn);
+    console.log(`Role with arn: ${terraformRoleArn}`);
+
+    console.log(sep);
+    console.log(`Attaching terraform policy to role`);
+    try {
+        await attachTerraformPolicyToRole();
+        console.log(`Attached policy`);
+    } catch (err) {
+        console.log(err);
+    }
 };
 
 await main();
