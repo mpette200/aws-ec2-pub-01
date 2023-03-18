@@ -10,6 +10,7 @@ jobs:
       env:
         STATE_ROLE_ARN: arn:aws:iam::368354737788:role/github-tf-state-01-role
         STATE_SESSION: github-tf-state-01-session
+        JWT_TOKEN_FILE: github-tf-access-01_token-file.jwt
         AWS_REGION: eu-west-1
       
       steps:
@@ -36,7 +37,7 @@ jobs:
           script: |
             const { writeFileSync } = require('node:fs');
             const token = await core.getIDToken('sts.amazonaws.com')
-            writeFileSync('terraform/github-tf-access-01_token-file.jwt', token);
+            writeFileSync('terraform/${{ env.JWT_TOKEN_FILE }}', token);
 
       - name: Run Terraform
         run: |
