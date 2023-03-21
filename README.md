@@ -24,7 +24,8 @@ cd ~/setup_access
 
 Create nodejs package:
 ```bash
-echo '{
+cat << 'EOF'  > package.json
+{
   "name": "setup-access",
   "version": "1.0.0",
   "description": "Setup IAM roles and permissions for federated github authentication",
@@ -41,14 +42,15 @@ echo '{
     "@aws-sdk/client-s3": "^3.290.0"
   }
 }
-' > package.json
+EOF
 
 ```
 
 
 Create script to setup access:
 ```bash
-echo 'import { S3Client, CreateBucketCommand } from "@aws-sdk/client-s3";
+cat << 'EOF' > setup_aws.js
+import { S3Client, CreateBucketCommand } from "@aws-sdk/client-s3";
 import {
     IAMClient,
     CreatePolicyCommand,
@@ -345,7 +347,7 @@ const main = async () => {
 };
 
 await main();
-' > setup_aws.js
+EOF
 
 ```
 
